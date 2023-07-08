@@ -63,7 +63,7 @@ func CoinBaseTx(toAddr string) *Transaction {
 	tx.ID = tx.Hash()
 
 	return &tx
-}
+}   
 
 func (tx *Transaction) String() string {
 	var lines []string
@@ -82,11 +82,4 @@ func (tx *Transaction) String() string {
 	}
 
 	return strings.Join(lines, "\n")
-}
-
-func main() {
-	tx := CoinBaseTx("test")
-
-	fmt.Println(tx.String())
-
 }
