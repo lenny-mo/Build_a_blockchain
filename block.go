@@ -95,9 +95,9 @@ func (b *Block) String() string {
 // 创世纪区块是区块链中的第一个区块，它是在区块链系统启动时创建的，而不是像其他区块一样通过工作量证明算法创建的。
 func GenesisBlock() *Block {
 	coinbaseTx := CoinBaseTx("Genesis Block")
-	block := Block{
+	block := &Block{
 		1,                          // Version= 1
-		[]byte{},                   // PrevBlockHash= nil
+		[]byte{},                   // PrevBlockHash= {}
 		nil,                        // MerkleRoot= nil
 		nil,                        // Hash= nil
 		time.Now().Unix(),          // Time= 0
@@ -105,7 +105,12 @@ func GenesisBlock() *Block {
 		0,                          // Nonce= 0
 		[]*Transaction{coinbaseTx}} // Transaction list
 
-	return &block
+	pow := NewPOW(block)
+	// calculate the nonce and hash
+	nonce, hash := pow.Run()
+	// hash of genesis block cannot be 0
+	block.Nonce, block.Hash = nonce, hash[:]
+	return block
 }
 
 // NewBlock creates and returns Block
@@ -113,7 +118,7 @@ func GenesisBlock() *Block {
 // 该函数接收一个前区块的哈希值和一个交易列表，然后创建一个新的区块，返回该区块的指针。
 func NewBlock(prevBlockHash []byte, transactions []*Transaction) *Block {
 	block := &Block{
-		2,                 // Version= 2
+		1,                 // Version= 1
 		prevBlockHash,     // PrevBlockHash= prevBlockHash
 		nil,               // MerkleRoot= nil
 		nil,               // Hash= nil
