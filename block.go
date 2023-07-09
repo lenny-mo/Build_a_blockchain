@@ -105,8 +105,26 @@ func GenesisBlock() *Block {
 		0,                          // Nonce= 0
 		[]*Transaction{coinbaseTx}} // Transaction list
 
-	pow := NewPOW(&block)
+	return &block
+}
+
+// NewBlock creates and returns Block
+//
+// 该函数接收一个前区块的哈希值和一个交易列表，然后创建一个新的区块，返回该区块的指针。
+func NewBlock(prevBlockHash []byte, transactions []*Transaction) *Block {
+	block := &Block{
+		2,                 // Version= 2
+		prevBlockHash,     // PrevBlockHash= prevBlockHash
+		nil,               // MerkleRoot= nil
+		nil,               // Hash= nil
+		time.Now().Unix(), // Time= 0
+		0,                 // Bits= 0
+		0,                 // Nonce= 0
+		transactions}      // Transaction list
+
+	pow := NewPOW(block)
+	// calculate the nonce and hash
 	nonce, hash := pow.Run()
 	block.Nonce, block.Hash = nonce, hash[:]
-	return &block
+	return block
 }
