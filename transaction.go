@@ -50,6 +50,9 @@ func (tx Transaction) Hash() []byte {
 	return hash[:]
 }
 
+// CoinbaseTx creates a coinbase transaction
+//
+// Coinbase 交易是一种特殊的交易，它没有输入，只有输出。
 func CoinBaseTx(toAddr string) *Transaction {
 	// coinbase transaction has no input, so we use an empty byte slice
 	// also, the index of the output is -1 which means it create output without input
@@ -63,7 +66,7 @@ func CoinBaseTx(toAddr string) *Transaction {
 	tx.ID = tx.Hash()
 
 	return &tx
-}   
+}
 
 func (tx *Transaction) String() string {
 	var lines []string
