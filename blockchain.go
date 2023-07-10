@@ -171,10 +171,9 @@ func (bit *BlockchainIterator) Next() *Block {
 // 迭代区块链并且打印
 func (bc *Blockchain) IterateBlockchain() {
 	iterator := bc.Iterator()
-
 	for {
 		block := iterator.Next()
-		fmt.Printf("Prev. hash: %x\n", block.String())
+		fmt.Printf("Block number: %v\n", block.String())
 
 		// when the previous block hash is empty, then the genesis block is reached
 		if len(block.PrevBlockHash) == 0 {
