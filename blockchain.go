@@ -23,6 +23,13 @@ type BlockchainIterator struct {
 
 // ------------------------- Blockchain -------------------------
 
+// GetBlockchain returns the latest block hash
+//
+// 返回最新区块的哈希值
+func (bc *Blockchain) GetTopHash() []byte {
+	return bc.topHash
+}
+
 // CreateBlockchain creates a new blockchain DB
 //
 // 创建一个新的区块链并且添加一个创世区块
