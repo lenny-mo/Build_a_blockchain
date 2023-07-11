@@ -13,9 +13,9 @@ const (
 )
 
 type Transaction struct {
-	ID  []byte
-	In  []TXinput
-	Out []TXoutput
+	ID  []byte     // 交易的哈希值
+	In  []TXinput  // 交易的所有输入。每一个 TXinput 都包含一个引用到过去交易的未花费输出UTXO，这表示你想要花费这些比特币。
+	Out []TXoutput // 交易的所有输出。每一个 TXoutput 都定义了一个新的比特币所有者和他们将获得的比特币数量。
 }
 
 type TXinput struct {
@@ -68,6 +68,9 @@ func CoinBaseTx(toAddr string) *Transaction {
 	return &tx
 }
 
+// String returns a human-readable representation of a transaction
+//
+// 交易的字符串表示
 func (tx *Transaction) String() string {
 	var lines []string
 
@@ -91,7 +94,7 @@ func (tx *Transaction) String() string {
 //
 // 判断交易是否是coinbase交易
 func (tx Transaction) IsCoinbase() bool {
-	// input len == 1, lenth of txid == 0, voutindex == -1
+	// input len == 1, lenth of txid == 0(no tx), voutindex == -1(no output)
 	return len(tx.In) == 1 && len(tx.In[0].TXid) == 0 && tx.In[0].Voutindex == -1
 }
 
@@ -103,37 +106,51 @@ func (txin *TXinput) CanUnlockOutputWith(unlockingData string) bool {
 	return string(txin.Signature) == unlockingData
 }
 
-// NewTXOutput
+// CreateTransaction creates a new transaction
 //
-// 遍历所有区块，遍历区块中的所有交易，遍历每个交易中的所有输出，如果输出的公钥哈希值和地址一致，那么这个输出就是我们想要找的
-func (bc *Blockchain) FindUTXO(address string) []*Transaction {
-	unsepentTXs := []*Transaction{} // 未花费的交易
+// 创建一个新的交易
+func CreateTransaction(fromAddr, toAddr string, amount int, blockchain *Blockchain) *Transaction {
+	inputs := []TXinput{}
+	outputs := []TXoutput{}
 
-	spendTxos := make(map[string][]int) // 已花费的交易输出
+	actualBalance, tx_index := blockchain.FindSpendableOutputs(fromAddr, amount)
 
-	bcIterator := bc.Iterator()
-
-	// iterate over all blocks
-	for {
-		block := bcIterator.Next()
-
-		// iterate over all transactions in one block
-		for _, tx := range block.Transactions {
-			txID := string(tx.ID)
-			
-			for outIdx, out := range tx.Out {
-				// if the output is already spent, continue
-				if spendTxos[txID] != nil {
-					
-				}
-			}
-		}
-
-		// 如果区块的前一个区块哈希值为0，说明已经到了创世区块，停止遍历
-		if len(block.PrevBlockHash) == 0 {
-			break
-		}
-
+	// 如果余额不足，返回 nil
+	if actualBalance < amount {
+		fmt.Println("ERROR: Not enough funds")
+		return nil
 	}
 
+	// iterate over the tx_index mapping, which contains the unspent output index
+	for txid, outputList := range tx_index {
+		txidStr := string(txid)
+
+		// iterate over the outputList, which contains the unspent output index
+		for _, outputIndex := range outputList {
+			// create a new input
+			input := TXinput{[]byte(txidStr), outputIndex, []byte(fromAddr)}
+			// append the input to the inputs
+			inputs = append(inputs, input)
+		}
+	}
+
+	// create a new output for the receiver
+	output := TXoutput{amount, []byte(toAddr)}
+	// append the output to the outputs
+	outputs = append(outputs, output)
+
+	// if the actualBalance is greater than the amount,
+	// we need to send the change back to the sender
+	if actualBalance > amount {
+		// create a new output for the sender
+		output := TXoutput{actualBalance - amount, []byte(fromAddr)}
+		// append the output to the outputs
+		outputs = append(outputs, output)
+	}
+
+	// create a new transaction
+	tx := Transaction{nil, inputs, outputs}
+	tx.ID = tx.Hash()
+
+	return &tx
 }
