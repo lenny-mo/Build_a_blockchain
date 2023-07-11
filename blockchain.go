@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	DBFILE      = "blockchain.db"
-	BLOCKBUCKET = "blocks"
+	DBFILE      = "blockchain.db" // 数据库文件名
+	BLOCKBUCKET = "blocks"        // 区块桶名
 )
 
 type Blockchain struct {
@@ -275,4 +275,45 @@ func (bc *Blockchain) FindUTXO(addr string) []*TXoutput {
 	}
 
 	return UTXOs
+}
+
+// FindSpendableOutputs finds all unspent transaction outputs according to the address and the amount
+//
+// 根据给定的地址和金额，找到这个地址在当前区块链中所没有花费的输出，
+// 根据给定的金额，找到这个地址所没有花费的输出中，能够满足给定金额的输出
+func (bc *Blockchain) FindSpendableOutputs(address string, amount int) (int, map[string][]int) {
+	// map[交易ID][]int, []int对应的是交易中的输出索引,
+	// 也就是说，需要记录addr 未花费的输出所在的交易ID和输出索引
+	unspentOutputs := make(map[string][]int)
+
+	unspentTxs := bc.FindUnspendTransaction(address) // 获取addr的所有未花费的交易
+
+	sum := 0
+
+TxLoop:
+	// iterate over all transactions
+	for _, tx := range unspentTxs {
+		txID := string(tx.ID)
+
+		// iterate over all outputs in one transaction
+		for outputIdx, output := range tx.Out {
+			// if the output can be unlocked by the address,
+			// it means that this output belongs to the address
+			// meanwhile, the sum of the outputs is less than the amount
+			// else it should be skipped
+			if output.CanBeUnlockedWith(address) && sum < amount {
+				sum += output.Value
+				unspentOutputs[txID] = append(unspentOutputs[txID], outputIdx)
+
+				if sum >= amount {
+					break TxLoop // 获取到了足够的金额，停止遍历Tx
+				}
+			}
+		}
+	}
+
+	// 有可能，addr的所有未花费的交易中，没有足够的金额
+	// 此时，sum < amount
+
+	return sum, unspentOutputs
 }
