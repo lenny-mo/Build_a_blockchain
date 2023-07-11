@@ -182,3 +182,97 @@ func (bc *Blockchain) IterateBlockchain() {
 	}
 
 }
+
+// FindUnspendTransaction finds all unspend transactions according to the address
+//
+// 根据给定的地址，找到这个地址所没有花费的输出所在的交易
+func (bc *Blockchain) FindUnspendTransaction(address string) []*Transaction {
+	// 关于addr的所有未花费的交易，在这些交易中一定包含有某个output是属于addr的
+	// 但是，这些交易中可能还有其他output也是属于addr的，所以我们需要遍历这些交易，找到所有属于addr的output
+	unsepentTXs := []*Transaction{}
+
+	// 存储一笔交易中所有被使用的输出; map[交易ID][]int, []int对应的是交易中的输出索引
+	spendTxos := make(map[string][]int)
+
+	bcIterator := bc.Iterator()
+
+	for {
+		// iterate over all blocks from the newest to the oldest
+		block := bcIterator.Next()
+
+		// iterate over all transactions in one block
+		for _, tx := range block.Transactions {
+			txID := string(tx.ID)
+
+			// iterate over all outputs in one transaction
+		Outputs:
+			for outIdx, output := range tx.Out {
+				// if spendTxos[txID] != nil, it means that some outputs in this transaction have been used
+				if spendTxos[txID] != nil {
+					// iterate over all used outputs in spendTxos[txID] to check whether the output has been used
+					for _, spentOutput := range spendTxos[txID] {
+						// it means that the outIdx has been used
+						if spentOutput == outIdx {
+							continue Outputs // outIdx has been used, so we skip to the next outIdx
+						}
+					}
+				}
+
+				// if the outout not been used,
+				// if the output can be unlocked by the address,
+				// it means that the address has not spent this output
+				if output.CanBeUnlockedWith(address) {
+					// eg. tx #3 有3笔输出，其中第一笔输出被使用了，那么spendTxos[tx #3] = []int{0}
+					// 剩下的两笔输出中只有第二笔是给bob的，所以unsepentTXs = []*Transaction{tx #3}
+					// 说明tx #3中存在关于bob的未花费输出
+					unsepentTXs = append(unsepentTXs, tx)
+				}
+			}
+
+			// tx can have input only if it is not a coinbase transaction
+			if !tx.IsCoinbase() {
+				for _, input := range tx.In {
+					// if the input can unlock the output with the address,
+					// it means that the address has spent the output
+					if input.CanUnlockOutputWith(address) {
+						inputTxID := string(input.TXid)
+						// inputTxID 记录了上一笔交易的ID
+						// input.Voutindex 记录了上一笔交易中的具体哪一笔输出被使用了
+						spendTxos[inputTxID] = append(spendTxos[inputTxID], input.Voutindex) // 记录这个交易中被使用的输出
+					}
+				}
+			}
+
+		}
+
+		// 如果到了创世区块，停止遍历, 创世区块的PrevBlockHash是空的
+		if len(block.PrevBlockHash) == 0 {
+			break
+		}
+	}
+
+	return unsepentTXs
+}
+
+// FindUTXO finds all unspent transaction outputs according to the address
+//
+// 根据给定的地址，找到这个地址在当前区块链中所没有花费的输出，需要使用FindUnspendTransaction函数
+func (bc *Blockchain) FindUTXO(addr string) []*TXoutput {
+	UTXOs := []*TXoutput{}
+
+	unspentTxs := bc.FindUnspendTransaction(addr)
+
+	// iterate over all transactions
+	for _, tx := range unspentTxs {
+		// iterate over all outputs in one transaction
+		for _, output := range tx.Out {
+			// if the output can be unlocked by the address,
+			// it means that this output belongs to the address
+			if output.CanBeUnlockedWith(addr) {
+				UTXOs = append(UTXOs, &output)
+			}
+		}
+	}
+
+	return UTXOs
+}

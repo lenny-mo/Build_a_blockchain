@@ -94,6 +94,7 @@ func (b *Block) String() string {
 //
 // 创世纪区块是区块链中的第一个区块，它是在区块链系统启动时创建的，而不是像其他区块一样通过工作量证明算法创建的。
 func GenesisBlock() *Block {
+	// coinbase transaction
 	coinbaseTx := CoinBaseTx("Genesis Block")
 	block := &Block{
 		1,                          // Version= 1
