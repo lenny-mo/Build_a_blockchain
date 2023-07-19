@@ -11,6 +11,16 @@ var alphabet = []byte("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy
 //
 // Base58Encode 用于将一个字节切片（[]byte）编码为 Base58 格式。
 func Base58Encode(input []byte) []byte {
+
+	zeroPrefix := 0 // 用于记录前导0的个数
+	for _, b := range input {
+		if b == 0x00 {
+			zeroPrefix++
+		} else {
+			break
+		}
+	}
+
 	var result []byte //定义一个空的切片来存储 Base58 编码结果。
 
 	x := big.NewInt(0).SetBytes(input)       // 将输入的字节切片转化为一个大整数（*big.Int）。
@@ -27,25 +37,23 @@ func Base58Encode(input []byte) []byte {
 	// reverse
 	reverseBytes(result) // 由于在上面的循环中，我们是从低位开始添加字符的，所以最后需要将结果反转。
 
-	for _, b := range input {
-		if b == 0x00 {
-			result = append([]byte{alphabet[0]}, result...)
-		} else {
-			break
-		}
+	// 根据开头统计的前导0个数， add leading 1's
+	for i := 0; i < zeroPrefix; i++ {
+		result = append([]byte{alphabet[0]}, result...)
 	}
+
 	return result
 }
 
 // Base58Decode decodes a modified base58 string to bytes
 //
-//
+// Base58Decode 用于将一个 Base58 编码的字符串解码为字节切片（[]byte）
 func Base58Decode(input []byte) ([]byte, error) {
 	result := big.NewInt(0)
 	zeroBytes := 0
 
-	for b := range input {
-		if b == '1' {
+	for _, b := range input {
+		if b == alphabet[0] {
 			zeroBytes++
 		} else {
 			break
@@ -65,11 +73,4 @@ func Base58Decode(input []byte) ([]byte, error) {
 	decoded = append(bytes.Repeat([]byte{byte(0x00)}, zeroBytes), decoded...)
 
 	return decoded, nil
-}
-
-// reverseString reverses a string
-func reverseString(input []byte) {
-	for i, j := 0, len(input)-1; i < j; i, j = i+1, j-1 {
-		input[i], input[j] = input[j], input[i]
-	}
 }
