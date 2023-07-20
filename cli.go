@@ -41,8 +41,24 @@ func (cli *CLI) Run() {
 	sendtxTo := sendtx.String("to", "", "Destination wallet address")
 	sendtxAmount := sendtx.Int("amount", 0, "Amount to send")
 
+	// 创建钱包
+	createWallet := flag.NewFlagSet("createwallet", flag.ExitOnError)
+	listAddress := flag.NewFlagSet("listaddress", flag.ExitOnError)
+
 	switch os.Args[1] {
-	//如果第一个命令行参数等于 "addblock"，那么就执行下面的代码块。
+	//如果第一个命令行参数等于 "addblock"，那么就执行下面的代码块
+	case "listaddress":
+		err := listAddress.Parse(os.Args[2:])
+		if err != nil {
+			panic(err)
+		}
+
+	case "createwallet":
+		err := createWallet.Parse(os.Args[2:])
+		if err != nil {
+			panic(err)
+		}
+
 	case "addblock":
 		// 解析从第二个参数开始的所有命令行参数, 把命令行参数转换成程序可以使用的数据和配置
 		err := addBlock.Parse(os.Args[2:])
@@ -107,6 +123,14 @@ func (cli *CLI) Run() {
 		cli.SendTx(*sendtxFrom, *sendtxTo, *sendtxAmount)
 	}
 
+	if createWallet.Parsed() {
+		cli.CreateWallet()
+	}
+
+	if listAddress.Parsed() {
+		cli.ListAddress()
+	}
+
 }
 
 // addBlock add a new block to the blockchain using CLI
@@ -143,4 +167,23 @@ func (cli *CLI) SendTx(from, to string, amount int) {
 	cli.blockchain.AddBlock([]*Transaction{tx})
 
 	fmt.Println("Success!")
+}
+
+func (cli *CLI) CreateWallet() {
+	wallets := CreateWallets()
+	wallets.ReadWalletsFromFile()             // 读取已经存在的钱包
+	address := wallets.CreateWalletRandomly() // 添加一个新的钱包
+	wallets.SaveWalletsToFile()               // 再次保存到文件中
+
+	fmt.Println("Your new address: ", address)
+}
+
+func (cli *CLI) ListAddress() {
+	wallets := CreateWallets()
+	wallets.ReadWalletsFromFile()
+	addresses := wallets.getAllAddress()
+
+	for _, address := range addresses {
+		fmt.Printf("address: %s\n", address)
+	}
 }
