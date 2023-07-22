@@ -9,7 +9,7 @@ import (
 // CLI responsible for processing command line arguments
 
 type CLI struct {
-	blockchain *Blockchain
+	Blockchain *Blockchain
 }
 
 // validateArgs validates the arguments of the command line, must be greater than 1
@@ -27,7 +27,6 @@ func (cli *CLI) Run() {
 	cli.validateArgs()
 
 	// create a flagset addblock for addblock command,
-	// which
 	addBlock := flag.NewFlagSet("addblock", flag.ExitOnError)
 	printBlock := flag.NewFlagSet("printblock", flag.ExitOnError)
 	getBalance := flag.NewFlagSet("getbalance", flag.ExitOnError)
@@ -46,13 +45,14 @@ func (cli *CLI) Run() {
 	listAddress := flag.NewFlagSet("listaddress", flag.ExitOnError)
 
 	switch os.Args[1] {
-	//如果第一个命令行参数等于 "addblock"，那么就执行下面的代码块
+	// 打印wallets.dat中的所有地址
 	case "listaddress":
 		err := listAddress.Parse(os.Args[2:])
 		if err != nil {
 			panic(err)
 		}
 
+	// 创建钱包并且保存到wallets.dat中
 	case "createwallet":
 		err := createWallet.Parse(os.Args[2:])
 		if err != nil {
@@ -143,16 +143,18 @@ func (cli *CLI) addBlock() {
 		CoinBaseTx("alice"),
 		CoinBaseTx("bob"),
 	}
-	cli.blockchain.AddBlock(txs)
+	cli.Blockchain.AddBlock(txs)
 }
 
 func (cli *CLI) printBlock() {
-	cli.blockchain.IterateBlockchain()
+	cli.Blockchain.IterateBlockchain()
 }
 
+// GetBalance get the balance of the address
 func (cli *CLI) GetBalance(addr string) {
 	balance := 0
-	utxos := cli.blockchain.FindUTXO(addr)
+
+	utxos := cli.Blockchain.FindUTXO(AddressToPubkeyHash(addr))
 
 	for _, utxo := range utxos {
 		balance += utxo.Value
@@ -162,9 +164,9 @@ func (cli *CLI) GetBalance(addr string) {
 }
 
 func (cli *CLI) SendTx(from, to string, amount int) {
-	tx := CreateTransaction(from, to, amount, cli.blockchain)
+	tx := CreateTransaction(from, to, amount, cli.Blockchain)
 
-	cli.blockchain.AddBlock([]*Transaction{tx})
+	cli.Blockchain.AddBlock([]*Transaction{tx})
 
 	fmt.Println("Success!")
 }
@@ -180,7 +182,6 @@ func (cli *CLI) CreateWallet() {
 
 func (cli *CLI) ListAddress() {
 	wallets := CreateWallets()
-	wallets.ReadWalletsFromFile()
 	addresses := wallets.getAllAddress()
 
 	for _, address := range addresses {
