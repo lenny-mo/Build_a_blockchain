@@ -39,11 +39,13 @@ func (ws *Wallets) CreateWalletRandomly() string {
 }
 
 func (ws *Wallets) GetWallet(address string) *Wallet {
+	ws.ReadWalletsFromFile()
 	return ws.Wallets[address]
 }
 
 func (ws *Wallets) getAllAddress() []string {
 	var addresses []string
+	ws.ReadWalletsFromFile()
 	// iterate over all keys in the map
 	for address := range ws.Wallets {
 		addresses = append(addresses, address)
@@ -98,7 +100,7 @@ func (ws *Wallets) ReadWalletsFromFile() bool {
 		return false
 	}
 
-	// 读取文件中的数据
+	// 打开文件
 	file, err := os.Open(WALLETSFILE)
 	if err != nil {
 		fmt.Printf("open wallets file failed: %v\n", err)
@@ -106,6 +108,7 @@ func (ws *Wallets) ReadWalletsFromFile() bool {
 	}
 	defer file.Close()
 
+	// 读取文件中的数据
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
 		fmt.Printf("read wallets file failed: %v\n", err)
