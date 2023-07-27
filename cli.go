@@ -140,8 +140,8 @@ func (cli *CLI) addBlock() {
 
 	// new a slice of random transactions
 	txs := []*Transaction{
-		CoinBaseTx("alice"),
-		CoinBaseTx("bob"),
+		CoinBaseTx("14AcsbEULnBTSU44HV8wswH12bmuJ78b9G"),
+		CoinBaseTx("1FBae9FyJTofCbWYK2hMHnxtf78qreFTSD"),
 	}
 	cli.Blockchain.AddBlock(txs)
 }
@@ -153,8 +153,11 @@ func (cli *CLI) printBlock() {
 // GetBalance get the balance of the address
 func (cli *CLI) GetBalance(addr string) {
 	balance := 0
+	// utxos := cli.Blockchain.FindUTXO(AddressToPubkeyHash(addr))
 
-	utxos := cli.Blockchain.FindUTXO(AddressToPubkeyHash(addr))
+	utxoset := UTXOSet{cli.Blockchain}
+	utxoset.StoreUTXO()
+	utxos := utxoset.FindUTXOByPubkeyHash(AddressToPubkeyHash(addr))
 
 	for _, utxo := range utxos {
 		balance += utxo.Value
@@ -166,7 +169,18 @@ func (cli *CLI) GetBalance(addr string) {
 func (cli *CLI) SendTx(from, to string, amount int) {
 	tx := CreateTransaction(from, to, amount, cli.Blockchain)
 
-	cli.Blockchain.AddBlock([]*Transaction{tx})
+	_, newblock := cli.Blockchain.AddBlock([]*Transaction{tx})
+
+	utsoxet := UTXOSet{cli.Blockchain}
+
+	utsoxet.UpdateUTXO(newblock)
+
+	// 硬编码形式验证UpdateUTXO是否正确
+	cli.GetBalance("1FBae9FyJTofCbWYK2hMHnxtf78qreFTSD")
+	cli.GetBalance("13bkBrCPM8tiCaXNufbWcQnRBjTboxK9jM")
+	cli.GetBalance("1D5S4w2ApAwhBgnYrRhtQx4X2J9uwSDCaD")
+	cli.GetBalance("1MFHDXugCGge6wxAhoS5Pee2AoVnpyfC7L")
+	cli.GetBalance("14AcsbEULnBTSU44HV8wswH12bmuJ78b9G")
 
 	fmt.Println("Success!")
 }
