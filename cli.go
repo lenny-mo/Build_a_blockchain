@@ -44,7 +44,16 @@ func (cli *CLI) Run() {
 	createWallet := flag.NewFlagSet("createwallet", flag.ExitOnError)
 	listAddress := flag.NewFlagSet("listaddress", flag.ExitOnError)
 
+	// 获取最新区块高度
+	getLatestHeight := flag.NewFlagSet("getlatestheight", flag.ExitOnError)
+
 	switch os.Args[1] {
+
+	case "getlatestheight":
+		err := getLatestHeight.Parse(os.Args[2:])
+		if err != nil {
+			panic(err)
+		}
 	// 打印wallets.dat中的所有地址
 	case "listaddress":
 		err := listAddress.Parse(os.Args[2:])
@@ -89,6 +98,9 @@ func (cli *CLI) Run() {
 		os.Exit(1)
 	}
 
+	if getLatestHeight.Parsed() {
+		cli.GetLatestHeight()
+	}
 	if addBlock.Parsed() {
 		cli.addBlock()
 	}
@@ -140,7 +152,6 @@ func (cli *CLI) addBlock() {
 
 	// new a slice of random transactions
 	txs := []*Transaction{
-		CoinBaseTx("14AcsbEULnBTSU44HV8wswH12bmuJ78b9G"),
 		CoinBaseTx("1FBae9FyJTofCbWYK2hMHnxtf78qreFTSD"),
 	}
 	cli.Blockchain.AddBlock(txs)
@@ -201,4 +212,9 @@ func (cli *CLI) ListAddress() {
 	for _, address := range addresses {
 		fmt.Printf("address: %s\n", address)
 	}
+}
+
+func (cli *CLI) GetLatestHeight() {
+	height, _ := cli.Blockchain.GetLatestHeight()
+	fmt.Printf("latest height: %d\n", height)
 }
