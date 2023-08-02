@@ -26,30 +26,42 @@ var (
 	CURRENTNODE = ""                         // 当前节点
 )
 
+func (ver *Version) String() string {
+	str := fmt.Sprintf("Version: %d\n", ver.Version)
+	str += fmt.Sprintf("LatestHeight: %d\n", ver.LatestHeight)
+	str += fmt.Sprintf("Addrfrom: %s\n", ver.Addrfrom)
+	return str
+}
+
 // StartServer starts a node
-func StartServer(nodeID, minderAddr string) bool {
+//
+// 给定一个端口号，持续监听这个端口号
+func StartServer(nodeID, minderAddr string, blockchain *Blockchain) bool {
 	nodeAddr := fmt.Sprintf("localhost:%s", nodeID)
 	CURRENTNODE = nodeAddr
 
-	listener, err := net.Listen("tcp", nodeAddr) // 监听这个节点的地址
+	// 一个程序监听一个地址（比如"localhost:3000"）只是指这个程序已经准备好接收和处理发往这个地址的网络请求
+	listener, err := net.Listen("tcp", nodeAddr) // 监听当前节点的地址
 	if err != nil {
 		panic(err)
 	}
 	defer listener.Close()
+	fmt.Printf("start to listen this address: %s\n", nodeAddr)
 
-	blockchain := CreateBlockchain()
-
-	// 如果当前节点不是种子节点，那么就需要向种子节点发送版本信息
+	// 如果当前节点不是种子节点, 需要向种子节点发送版本信息, 让种子节点知道新节点的存在
+	// 这里 nodeAddr 就是localhost:3000
 	if nodeAddr != KNOWNNODES[0] {
-		sendVersion(nodeAddr, blockchain)
+		fmt.Println("current node is not a seed node, need to send version to seed node")
+		sendVersion(KNOWNNODES[0], blockchain)
 	}
 
-	// 一直监听
 	for {
 		connect, err := listener.Accept() // 接收到一个连接
 		if err != nil {
 			panic(err)
 		}
+		// 非种子节点向种子节点发送版本信息后，
+		// 种子节点需要处理这个新节点的连接请求
 		go handleConnection(connect, blockchain)
 	}
 
@@ -64,7 +76,7 @@ func sendVersion(toAddr string, bc *Blockchain) bool {
 	version := Version{
 		NODEVERSION,
 		latestHeight,
-		CURRENTNODE, // 发送方地址: 当前节点的地址
+		CURRENTNODE, // 当前节点的地址
 	}
 
 	payload := EncodeEverything(version)                     // convert into bytes
@@ -89,7 +101,7 @@ func EncodeEverything(data interface{}) []byte {
 
 // commandToBytes converts a command to bytes
 //
-// 把一个命令转换成长度固定的字节数组, 考虑是否可以使用hash, 把命令转换成固定长度的哈希值
+// 把一个命令转换成长度固定的字节数组；考虑是否可以使用hash, 把命令转换成固定长度的哈希值
 func commandToBytes(cmd string) []byte {
 	var bytes [COMMANDLENGTH]byte
 
@@ -105,7 +117,7 @@ func commandToBytes(cmd string) []byte {
 //
 // 把字节数组转换成命令
 func bytesToCommand(bytes []byte) string {
-	var command = make([]byte, 0, 0)
+	var command = make([]byte, 0)
 
 	for _, v := range bytes {
 		if v != 0x0 {
@@ -120,9 +132,10 @@ func bytesToCommand(bytes []byte) string {
 
 // sendData sends data to a node
 //
-// 向一个节点发送数据, 如果节点不存在, 那么就把这个节点从种子节点列表中删除
+// 向一个种子节点发送数据, 如果节点不存在, 那么就把这个节点从种子节点列表中删除
 func sendData(toAddr string, data []byte) bool {
-	connect, err := net.Dial("tcp", toAddr)
+	connect, err := net.Dial("tcp", toAddr) // 使用TCP协议连接到toAddr
+
 	// 如果这个地址无法连接，那么就把这个地址从种子节点列表中删除
 	if err != nil {
 		fmt.Printf("address %s is not available\n", toAddr)
@@ -155,28 +168,32 @@ func sendData(toAddr string, data []byte) bool {
 //
 // 从连接中读取数据，然后根据命令执行对应的函数
 func handleConnection(conn net.Conn, bc *Blockchain) {
+
+	// 1. 从连接中读取数据
 	request, err := io.ReadAll(conn)
 	if err != nil {
+		fmt.Println("cannot connect to addr, %w", err)
 		panic(err)
 	}
 
-	// 从request中解析出命令
+	// 2. 从request中解析出命令
 	command := bytesToCommand(request[:COMMANDLENGTH])
 
-	// 执行对应的函数
+	// 3. 接收到来自非种子节点的version信息
 	switch command {
 	case "version":
+		fmt.Println("receive version message")
 		handleVersion(request, bc)
 	}
-
 }
 
 // handleVersion handles version message
 //
 // 处理version信息
 func handleVersion(request []byte, bc *Blockchain) {
+	// 1. 解码version信息
 	var buff bytes.Buffer
-	var payload Version // 指代在一个数据包或消息中，实际携带的、对于最终用户有意义的数据
+	var payload Version // payload 指代在一个数据包或消息中，实际携带的、对于最终用户有意义的数据
 
 	decoder := gob.NewDecoder(&buff)
 	buff.Write(request[COMMANDLENGTH:])
@@ -189,14 +206,20 @@ func handleVersion(request []byte, bc *Blockchain) {
 		panic(err)
 	}
 
-	localHeight, _ := bc.GetLatestHeight() // 获取当前节点的区块高度
+	localHeight, _ := bc.GetLatestHeight() // 获取当前节点的区块高度，也就是种子节点的区块高度
 	remoteHeight := payload.LatestHeight   // 获取发送方的区块高度
 
+	fmt.Println("种子节点当前高度: ", localHeight)
+	fmt.Println("remoteHeight: ", remoteHeight)
+	fmt.Println("remoteVersion struct info: ", payload.String())
+
+	// 2. 根据区块高度判断当前节点和发送方的区块数据是否同步
 	if remoteHeight > localHeight {
-		// 如果发送方的区块高度大于当前节点的区块高度，那么就向发送方请求区块数据
+		// 如果对方的区块高度大于当前节点的区块高度，那么就向对方请求区块数据
 		// TODO: getBlocksFrom()
-	} else if remoteHeight < localHeight {
-		// 如果发送方的区块高度小于当前节点的区块高度，那么就向发送方发送区块数据
+		getBlocksFrom(payload.Addrfrom, payload.LatestHeight)
+	} else {
+		// 如果对方的区块高度小于当前节点的区块高度，那么就向对方发送区块数据
 		sendVersion(payload.Addrfrom, bc)
 	}
 
@@ -205,6 +228,8 @@ func handleVersion(request []byte, bc *Blockchain) {
 		KNOWNNODES = append(KNOWNNODES, payload.Addrfrom)
 	}
 
+	fmt.Println("Current Known Nodes: ", KNOWNNODES)
+	fmt.Println("handleVersion func complete")
 }
 
 // isKnownNode checks if a node is known
@@ -218,4 +243,11 @@ func isKnownNode(addr string) bool {
 	}
 
 	return false
+}
+
+// getBlocksFrom gets blocks from a node
+//
+// 从addr 地址获取缺少的区块数据，latestHeight是发送方的区块高度
+func getBlocksFrom(addr string, latestHeight int64) {
+	
 }
