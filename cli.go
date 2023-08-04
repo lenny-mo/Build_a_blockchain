@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -26,7 +27,10 @@ func (cli *CLI) validateArgs() {
 func (cli *CLI) Run() {
 	cli.validateArgs()
 
-	// create a flagset addblock for addblock command,
+	// --------------------- 1. create a flagset addblock for addblock command ---------------------
+	startNode := flag.NewFlagSet("startnode", flag.ExitOnError)
+	startNodeMinner := startNode.String("minner", "", "Start a node with miner address")
+
 	addBlock := flag.NewFlagSet("addblock", flag.ExitOnError)
 	printBlock := flag.NewFlagSet("printblock", flag.ExitOnError)
 	getBalance := flag.NewFlagSet("getbalance", flag.ExitOnError)
@@ -47,7 +51,15 @@ func (cli *CLI) Run() {
 	// 获取最新区块高度
 	getLatestHeight := flag.NewFlagSet("getlatestheight", flag.ExitOnError)
 
+	// -------------------------- 2. 解析命令行参数 --------------------------
+	// os.Args[0]是程序的路径, os.Args[1]是第一个参数
 	switch os.Args[1] {
+
+	case "startnode":
+		err := startNode.Parse(os.Args[2:])
+		if err != nil {
+			panic(err)
+		}
 
 	case "getlatestheight":
 		err := getLatestHeight.Parse(os.Args[2:])
@@ -98,9 +110,20 @@ func (cli *CLI) Run() {
 		os.Exit(1)
 	}
 
+	// ------------------------ 3. 根据解析后的命令行参数执行对应的功能 ------------------------
+	if startNode.Parsed() {
+		nodeID := "3000" // 需要监听的节点ID
+		if nodeID == "" {
+			fmt.Println("NODE_ID env. var is not set! You need to set it to a positive integer value")
+			os.Exit(1)
+		}
+		cli.startnode(nodeID, *startNodeMinner)
+	}
+
 	if getLatestHeight.Parsed() {
 		cli.GetLatestHeight()
 	}
+
 	if addBlock.Parsed() {
 		cli.addBlock()
 	}
@@ -217,4 +240,26 @@ func (cli *CLI) ListAddress() {
 func (cli *CLI) GetLatestHeight() {
 	height, _ := cli.Blockchain.GetLatestHeight()
 	fmt.Printf("latest height: %d\n", height)
+}
+
+// startnode start a node
+func (cli CLI) startnode(nodeid, minnerAddr string) {
+	fmt.Printf("start node: %s\n", nodeid)
+
+	// 如果minnerAddr不为空，则验证地址是否有效
+	if len(minnerAddr) > 0 {
+		if ValidateAddress(minnerAddr) {
+			fmt.Println("minner address is valid!")
+		} else {
+			log.Panic("invalid minner address")
+		}
+	}
+
+	// 如果节点有效，则启动服务器
+	ok := StartServer(nodeid, minnerAddr, cli.Blockchain)
+	if !ok {
+		fmt.Printf("node %s start failed!\n", nodeid)
+		os.Exit(1)
+	}
+
 }

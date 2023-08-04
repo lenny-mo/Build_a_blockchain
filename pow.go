@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
-	"fmt"
 	"math/big"
 )
 
@@ -64,7 +63,7 @@ func (pow *POW) Run() (int64, []byte) {
 		firstHash = sha256.Sum256(powData)
 		secondHash = sha256.Sum256(firstHash[:])
 
-		fmt.Printf("\r%x\n", secondHash)
+		// fmt.Printf("\r%x\n", secondHash)
 		// convert the hash to a big integer
 		currentHash.SetBytes(secondHash[:])
 

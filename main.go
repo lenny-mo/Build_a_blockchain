@@ -3,23 +3,27 @@ package main
 import "fmt"
 
 func main() {
-	block := Block{
-		Version:       1,
-		PrevBlockHash: []byte(""),
-		MerkleRoot:    []byte(""),
-		Time:          0,
-		Bits:          0,
-		Nonce:         0,
-		Transactions:  []*Transaction{},
-	}
+	// test()
 
-	pow := NewPOW(&block)
+	cli := CLI{}
+	cli.Blockchain = CreateBlockchain()
+	cli.Run()
 
-	nonce, _ := pow.Run()
+}
 
-	block.Nonce = nonce
+func test() {
 
-	rs := pow.Validate()
+	// 测试base	58编码解码是否正常
 
-	fmt.Println(rs)
+	// new wallet
+	wallet := CreateWallet()
+
+	fmt.Printf("private key: %x\n", wallet.PrivateKey.D.Bytes())
+	fmt.Printf("public key: %x\n", wallet.PublicKey)
+	address := wallet.GetAddressWithPublickey(MAINNET_VERSION)
+	fmt.Printf("address: %x\n", address)
+
+	ok := ValidateAddress(string(address))
+
+	fmt.Printf("validate address: %v\n", ok)
 }

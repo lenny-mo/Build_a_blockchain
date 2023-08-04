@@ -18,6 +18,7 @@ type Block struct {
 	Bits          int64 // 前区块工作量证明的难度目标，这个值是动态调整的，可以保证区块生成的速度大致稳定。
 	Nonce         int64 // 用于工作量证明算法的计数器
 	Transactions  []*Transaction
+	Height        int64 // 区块高度
 }
 
 // CreateMerkleRoot creates a merkle root from the transactions
@@ -68,6 +69,8 @@ func (b Block) Serialize() []byte {
 }
 
 // Deserialize returns a deserialized Block pointer
+//
+// 根据序列化的数据，进行反序列化，返回一个区块的指针
 func Deserialize(d []byte) *Block {
 	var block Block
 	err := gob.NewDecoder(bytes.NewReader(d)).Decode(&block)
@@ -95,16 +98,19 @@ func (b *Block) String() string {
 // 创世纪区块是区块链中的第一个区块，它是在区块链系统启动时创建的，而不是像其他区块一样通过工作量证明算法创建的。
 func GenesisBlock() *Block {
 	// coinbase transaction
-	coinbaseTx := CoinBaseTx("Genesis Block")
+	// XXX: 这里的地址是我自己的地址，你可以换成你自己的地址
+	coinbaseTx := CoinBaseTx("1FBae9FyJTofCbWYK2hMHnxtf78qreFTSD")
 	block := &Block{
-		1,                          // Version= 1
-		[]byte{},                   // PrevBlockHash= {}
-		nil,                        // MerkleRoot= nil
-		nil,                        // Hash= nil
-		time.Now().Unix(),          // Time= 0
-		0,                          // Bits= 0
-		0,                          // Nonce= 0
-		[]*Transaction{coinbaseTx}} // Transaction list
+		1,                 // Version= 1
+		[]byte{},          // PrevBlockHash= {}
+		nil,               // MerkleRoot= nil
+		nil,               // Hash= nil
+		time.Now().Unix(), // Time= 0
+		0,                 // Bits= 0
+		0,                 // Nonce= 0
+		[]*Transaction{coinbaseTx},
+		0, // Height= 0
+	} // Transaction list
 
 	pow := NewPOW(block)
 	// calculate the nonce and hash
@@ -117,7 +123,7 @@ func GenesisBlock() *Block {
 // NewBlock creates and returns Block
 //
 // 该函数接收一个前区块的哈希值和一个交易列表，然后创建一个新的区块，返回该区块的指针。
-func NewBlock(prevBlockHash []byte, transactions []*Transaction) *Block {
+func NewBlock(prevBlockHash []byte, transactions []*Transaction, latestHeight int64) *Block {
 	block := &Block{
 		1,                 // Version= 1
 		prevBlockHash,     // PrevBlockHash= prevBlockHash
@@ -126,7 +132,9 @@ func NewBlock(prevBlockHash []byte, transactions []*Transaction) *Block {
 		time.Now().Unix(), // Time= 0
 		0,                 // Bits= 0
 		0,                 // Nonce= 0
-		transactions}      // Transaction list
+		transactions,
+		latestHeight, // Height= latestHeight
+	} // Transaction list
 
 	pow := NewPOW(block)
 	// calculate the nonce and hash

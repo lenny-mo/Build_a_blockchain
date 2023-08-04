@@ -86,8 +86,8 @@ func CreateBlockchain() *Blockchain {
 
 	blockchain := Blockchain{topHash: tophash, db: boltDB}
 
-	set := UTXOSet{&blockchain} // 创建UTXO集合
-	set.StoreUTXO()             // 存储UTXO
+	UTXOset := UTXOSet{&blockchain} // 创建UTXO集合
+	UTXOset.StoreUTXO()             // 存储UTXO
 
 	return &blockchain
 }
@@ -527,7 +527,7 @@ func (bc *Blockchain) FindAllUTXO() map[string]TXoutputSlice {
 
 // GetLatestHeight returns the latest block height
 //
-// 获取最新的区块高度
+// 获取最新的区块高度 , 创世纪区块的高度为0
 func (blockchain *Blockchain) GetLatestHeight() (int64, error) {
 	var block *Block
 
